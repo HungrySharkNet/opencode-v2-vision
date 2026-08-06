@@ -194,14 +194,14 @@ export default (async () => {
         || (Array.isArray(model?.modalities?.input) && model.modalities.input.includes("image"))
       currentModelSupportsImage = hasImage
       if (input.sessionID) sessionImageSupport.set(input.sessionID, hasImage)
+      let instruction: string | undefined
       if (hasImage) {
-        output.system.push(
-          "You have native image input capabilities. You can directly view and analyze images attached to user messages. Do NOT call the `vision` tool to read images sent by the user — analyze them natively instead.",
-        )
+        instruction = "You have native image input capabilities. You can directly view and analyze images attached to user messages. Do NOT call the `vision` tool to read images sent by the user — analyze them natively instead."
       } else if (VISION_MODE === "subagent") {
-        output.system.push(
-          `IMPORTANT: This model does NOT support image input. When a user attaches an image or screenshot, OpenCode will save it to a temp directory and inject a path hint like '[Image #N auto-saved to /tmp/opencode-vision/imageN/hash.png]'. You MUST delegate image analysis to the @${VISION_SUBAGENT_NAME} subagent via the Task tool (subagent_type="${VISION_SUBAGENT_NAME}", prompt="Read and describe the image at <path>"). The @${VISION_SUBAGENT_NAME} subagent runs on a multimodal model (e.g. opencode-go/minimax-m3) that can read images. Never attempt to read images directly with the \`read\` tool — it will fail with 'model does not support image input'.`,
-        )
+        instruction = `IMPORTANT: This model does NOT support image input. When a user attaches an image or screenshot, OpenCode will save it to a temp directory and inject a path hint like '[Image #N auto-saved to /tmp/opencode-vision/imageN/hash.png]'. You MUST delegate image analysis to the @${VISION_SUBAGENT_NAME} subagent via the Task tool (subagent_type="${VISION_SUBAGENT_NAME}", prompt="Read and describe the image at <path>"). The @${VISION_SUBAGENT_NAME} subagent runs on a multimodal model (e.g. opencode-go/minimax-m3) that can read images. Never attempt to read images directly with the \`read\` tool — it will fail with 'model does not support image input'.`
+      }
+      if (instruction) {
+        output.system.splice(0, output.system.length, [...output.system, instruction].join("\n"))
       }
     },
     "experimental.chat.messages.transform": async (_input, output) => {
