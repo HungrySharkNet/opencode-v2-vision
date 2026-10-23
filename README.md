@@ -14,8 +14,8 @@
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="MIT License">
   </a>
-  <a href="https://github.com/HungrySharkNet/opencode-vision">
-    <img src="https://img.shields.io/github/stars/HungrySharkNet/opencode-vision?style=flat-square" alt="GitHub stars">
+  <a href="https://github.com/HungrySharkNet/opencode-v2-vision">
+    <img src="https://img.shields.io/github/stars/HungrySharkNet/opencode-v2-vision?style=flat-square" alt="GitHub stars">
   </a>
 </p>
 
@@ -32,9 +32,9 @@
 This fork is not published to npm — install it from a clone:
 
 ```bash
-git clone https://github.com/HungrySharkNet/opencode-vision
+git clone https://github.com/HungrySharkNet/opencode-v2-vision
 mkdir -p ~/.config/opencode/plugins
-cp opencode-vision/plugins/vision-helper.ts ~/.config/opencode/plugins/
+cp opencode-v2-vision/plugins/vision-helper.ts ~/.config/opencode/plugins/
 opencode service restart
 ```
 
@@ -210,9 +210,9 @@ export VISION_API_URL="https://api.minimax.chat"
 Copy the single plugin file to OpenCode's global config directory:
 
 ```bash
-git clone https://github.com/HungrySharkNet/opencode-vision
+git clone https://github.com/HungrySharkNet/opencode-v2-vision
 mkdir -p ~/.config/opencode/plugins
-cp opencode-vision/plugins/vision-helper.ts ~/.config/opencode/plugins/
+cp opencode-v2-vision/plugins/vision-helper.ts ~/.config/opencode/plugins/
 ```
 
 OpenCode 2.x auto-discovers `.ts` files under `~/.config/opencode/plugins/` — **no need to modify `opencode.json`**. The `vision` tool is registered by the plugin itself.
@@ -222,8 +222,8 @@ OpenCode 2.x auto-discovers `.ts` files under `~/.config/opencode/plugins/` — 
 The bundled installer copies the plugin, checks the OpenCode version, and cleans up 1.x leftovers:
 
 ```bash
-git clone https://github.com/HungrySharkNet/opencode-vision
-cd opencode-vision
+git clone https://github.com/HungrySharkNet/opencode-v2-vision
+cd opencode-v2-vision
 node bin/install.js              # install
 node bin/install.js --uninstall  # uninstall
 ```

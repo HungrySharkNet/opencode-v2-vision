@@ -12,13 +12,13 @@
     "plugin",
     "minimax"
   ],
-  "homepage": "https://github.com/HungrySharkNet/opencode-vision",
+  "homepage": "https://github.com/HungrySharkNet/opencode-v2-vision",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/HungrySharkNet/opencode-vision.git"
+    "url": "git+https://github.com/HungrySharkNet/opencode-v2-vision.git"
   },
   "bugs": {
-    "url": "https://github.com/HungrySharkNet/opencode-vision/issues"
+    "url": "https://github.com/HungrySharkNet/opencode-v2-vision/issues"
   },
   "license": "MIT",
   "author": "Jochen Yang",
