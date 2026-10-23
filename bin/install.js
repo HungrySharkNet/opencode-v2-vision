@@ -5,12 +5,9 @@ const os = require("os")
 
 const SRC = path.join(__dirname, "..")
 const DST = path.join(os.homedir(), ".config", "opencode")
+const PLUGIN_REL = path.join("plugins", "vision-helper.ts")
+const LEGACY_TOOL_REL = path.join("tools", "vision.ts")
 const isWin = process.platform === "win32"
-
-const FILES = [
-  ["tools/vision.ts", "tools/vision.ts"],
-  ["plugins/vision-helper.ts", "plugins/vision-helper.ts"],
-]
 
 const ENV_VARS = [
   { name: "VISION_API_KEY", desc: "视觉 API 密钥 / Vision API key", example: "sk-your-api-key" },
@@ -78,26 +75,43 @@ async function checkVars() {
   return missing
 }
 
+/** 删除 1.x 安装到 tools/ 的 vision.ts（只在确认是本项目的文件时）。 */
+function removeLegacyTool() {
+  const legacy = path.join(DST, LEGACY_TOOL_REL)
+  if (!fs.existsSync(legacy)) return
+
+  try {
+    const content = fs.readFileSync(legacy, "utf8")
+    if (!content.includes("opencode-vision")) return
+    fs.unlinkSync(legacy)
+    log(`已清理 1.x 遗留文件 ${LEGACY_TOOL_REL}`)
+
+    const dir = path.dirname(legacy)
+    if (fs.existsSync(dir) && fs.readdirSync(dir).length === 0) {
+      fs.rmdirSync(dir)
+      log(`已清理空目录 ${path.relative(os.homedir(), dir)}`)
+    }
+  } catch (err) {
+    log(`清理 ${LEGACY_TOOL_REL} 失败: ${err.message}`, false)
+  }
+}
+
 async function doInstall() {
-  title("opencode-vision 安装")
+  title("opencode-vision 安装 (OpenCode v2)")
 
   // ── 文件复制 ──
-  for (const [, rel] of FILES) {
-    const dir = path.join(DST, path.dirname(rel))
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true })
-    }
+  const srcPlugin = path.join(SRC, PLUGIN_REL)
+  const dstPlugin = path.join(DST, PLUGIN_REL)
+  if (!fs.existsSync(srcPlugin)) {
+    log(`源文件不存在: ${PLUGIN_REL}`, false)
+  } else {
+    fs.mkdirSync(path.dirname(dstPlugin), { recursive: true })
+    fs.copyFileSync(srcPlugin, dstPlugin)
+    log(`安装 ${PLUGIN_REL}`)
   }
-  for (const [srcRel, dstRel] of FILES) {
-    const src = path.join(SRC, srcRel)
-    const dst = path.join(DST, dstRel)
-    if (!fs.existsSync(src)) {
-      log(`源文件不存在: ${srcRel}`, false)
-      continue
-    }
-    fs.copyFileSync(src, dst)
-    log(`安装 ${dstRel}`)
-  }
+
+  // ── 清理 1.x 遗留文件 ──
+  removeLegacyTool()
 
   // ── 环境变量检查 ──
   title("环境变量检查")
@@ -112,111 +126,44 @@ async function doInstall() {
   title("OpenCode 检测")
   try {
     const { execSync } = require("child_process")
-    const ver = execSync("opencode --version 2>nul || opencode version 2>/dev/null", {
+    const ver = execSync("opencode --version 2>/dev/null", {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 5000,
     }).trim()
-    log(`OpenCode ${ver || "已安装"}`)
+    const major = Number((ver.match(/[v]?(\d+)\./) || [])[1] || 0)
+    if (major >= 2) {
+      log(`OpenCode ${ver}`)
+    } else {
+      log(`检测到 OpenCode ${ver || "未知版本"} — opencode-vision 2.x 需要 OpenCode 2.x`, false)
+      console.log("     OpenCode 1.x 请使用 1.8.3：npx @jochenyang/opencode-vision@1.8.3")
+    }
   } catch {
-    log("未检测到 OpenCode — 请先安装 https://github.com/opencode-ai/opencode", false)
-  }
-
-  // P2-8: offer to write env vars into opencode.json so users don't have to restart
-  if (missing > 0) {
-    await offerWriteOpencodeJson()
+    log("未检测到 OpenCode — 请先安装 https://opencode.ai", false)
   }
 
   title("安装完成")
-  console.log("  ✅ 文件已就位，重启 OpenCode 后即可使用。")
+  console.log("  ✅ 插件已安装到 ~/.config/opencode/plugins/vision-helper.ts")
+  console.log("     OpenCode 2.x 会自动发现该目录，无需修改 opencode.json。")
+  console.log("  🔄 重启 OpenCode 使插件生效（opencode service restart）。")
   if (missing > 0) {
-    console.log("  ⚠ 环境变量未配置完整，视觉识别功能无法正常工作。")
-    console.log("     请按上面指引设置后再重启 OpenCode。")
+    console.log("  ⚠ 环境变量未配置完整：api 模式需要 VISION_API_KEY / VISION_API_URL。")
+    console.log("     未配置密钥时自动使用 subagent 模式（需要配置多模态子代理）。")
   }
   console.log("  📝 使用方式：粘贴一张图片并提问")
   console.log('     "[图片] 这是什么？"')
 }
 
-/**
- * P2-8: 交互式询问是否将环境变量写入 ~/.config/opencode/opencode.json 的 env 字段。
- * 这样用户不需要重启终端或系统就能让变量生效。
- */
-async function offerWriteOpencodeJson() {
-  const configPath = path.join(DST, "opencode.json")
-  title("opencode.json 写入选项")
-  console.log("  检测到环境变量未完整配置。")
-  console.log("  可以直接将变量写入 ~/.config/opencode/opencode.json（无需重启终端）。")
-  console.log()
-  console.log("  \x1b[36m写入内容预览：\x1b[0m")
-  const preview = {
-    env: {
-      VISION_API_KEY: "<your-key-here>",
-      VISION_API_URL: "<your-api-url-here>",
-      ...(process.env["VISION_API_TYPE"] ? { VISION_API_TYPE: process.env["VISION_API_TYPE"] } : {}),
-    },
-  }
-  console.log("  " + JSON.stringify(preview, null, 2).split("\n").join("\n  "))
-  console.log()
-
-  const readline = require("readline")
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-  const answer = await new Promise((resolve) =>
-    rl.question("  写入 opencode.json? [y/N] ", (ans) => {
-      rl.close()
-      resolve(ans)
-    }),
-  )
-
-  if (!/^y(es)?$/i.test(answer.trim())) {
-    console.log("  跳过写入，请手动设置环境变量。")
-    return
-  }
-
-  // Read or init config
-  let config = {}
-  if (fs.existsSync(configPath)) {
-    try {
-      config = JSON.parse(fs.readFileSync(configPath, "utf8"))
-    } catch (err) {
-      log(`无法读取 ${configPath}: ${err.message}，请手动备份后重试`, false)
-      return
-    }
-  }
-  config.env = config.env || {}
-
-  // For each missing env var, prompt for a value
-  const readline2 = require("readline")
-  const rl2 = readline2.createInterface({ input: process.stdin, output: process.stdout })
-  for (const v of ENV_VARS) {
-    if (process.env[v.name]) continue
-    const val = await new Promise((resolve) =>
-      rl2.question(`  ${v.name}: `, (ans) => resolve(ans.trim())),
-    )
-    if (val) {
-      config.env[v.name] = val
-      log(`已记录 ${v.name}`)
-    }
-  }
-  rl2.close()
-
-  // Write back with a .bak backup
-  if (fs.existsSync(configPath)) {
-    fs.copyFileSync(configPath, configPath + ".bak")
-  }
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n")
-  log(`已写入 ${path.relative(os.homedir(), configPath)}`)
-  if (fs.existsSync(configPath + ".bak")) {
-    log(`原文件已备份到 ${path.basename(configPath)}.bak`)
-  }
-}
-
 async function doUninstall() {
   title("opencode-vision 卸载")
 
+  const targets = [PLUGIN_REL, LEGACY_TOOL_REL]
   let removed = 0
-  for (const [, rel] of FILES) {
+
+  for (const rel of targets) {
     const dst = path.join(DST, rel)
     if (!fs.existsSync(dst)) {
+      if (rel === LEGACY_TOOL_REL) continue
       log(`未安装: ${rel}`)
       continue
     }
@@ -227,11 +174,11 @@ async function doUninstall() {
     const dir = path.dirname(dst)
     if (fs.existsSync(dir) && fs.readdirSync(dir).length === 0) {
       fs.rmdirSync(dir)
-      log(`已清理空目录 ${path.relative(os.homedir(), dir)}`)
+      log(`已清理空目录 ${path.relative(os.tmpdir(), dir)}`)
     }
   }
 
-  // P2-9: clean up the temp directory containing cached images (user privacy)
+  // 清理缓存图片（用户隐私）
   const tmpDir = path.join(os.tmpdir(), "opencode-vision")
   if (fs.existsSync(tmpDir)) {
     try {
@@ -262,6 +209,7 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("\x1b[31m操作失败:\x1b[0m", err.message)
+  console.error("\x1b[31m操作失败:\x1b[0m", errmessage)
   process.exit(1)
 })
+

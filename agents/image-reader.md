@@ -1,13 +1,20 @@
 ---
-description: 使用多模态模型分析图片和截图。当主模型不支持视觉时，将图片分析委托给此子代理。
+description: Analyze images and screenshots with a multimodal model. Use when the active model cannot view images itself.
 mode: subagent
 model: minimax-cn-coding-plan/MiniMax-M3
-permission:
-  read: allow
-  glob: allow
-  list: allow
-  bash: deny
-  edit: deny
+permissions:
+  - action: read
+    resource: "*"
+    effect: allow
+  - action: glob
+    resource: "*"
+    effect: allow
+  - action: shell
+    resource: "*"
+    effect: deny
+  - action: edit
+    resource: "*"
+    effect: deny
 ---
 
 You are a vision analyst. Read the image at the given path using the `read` tool and provide a detailed analysis.

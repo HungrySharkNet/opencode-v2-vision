@@ -1,8 +1,4 @@
 <p align="center">
-  🌐 <strong>English</strong> · <a href="README.md">中文</a>
-</p>
-
-<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/logo.svg">
     <img src="assets/logo.svg" width="64" alt="opencode-vision logo">
@@ -10,12 +6,9 @@
 </p>
 <h1 align="center">opencode-vision</h1>
 <p align="center">
-  🌐 <strong>English</strong> · <a href="README.md">中文</a>
-</p>
-<p align="center">
   Let non-vision OpenCode models "see" pasted images
   <br />
-  Auto-saves images → guides model to call vision tool → returns description
+  Auto-saves images → guides the model to the `vision` tool → returns a description
 </p>
 <p align="center">
   <a href="https://www.npmjs.com/package/@jochenyang/opencode-vision">
@@ -27,18 +20,6 @@
   <a href="https://github.com/JochenYang/opencode-vision">
     <img src="https://img.shields.io/github/stars/JochenYang/opencode-vision?style=flat-square" alt="GitHub stars">
   </a>
-</p>
-  <p align="center">
-    <a href="https://www.npmjs.com/package/@jochenyang/opencode-vision">
-      <img src="https://img.shields.io/npm/v/@jochenyang/opencode-vision?style=flat-square" alt="npm version">
-    </a>
-    <a href="LICENSE">
-      <img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="MIT License">
-    </a>
-    <a href="https://github.com/JochenYang/opencode-vision">
-      <img src="https://img.shields.io/github/stars/JochenYang/opencode-vision?style=flat-square" alt="GitHub stars">
-    </a>
-  </p>
 </p>
 
 ---
@@ -62,22 +43,27 @@ npx @jochenyang/opencode-vision --uninstall
 ```
 User pastes image + "What is this?"
   ↓
-vision-helper plugin (experimental.chat.messages.transform)
-  ├─ Decode base64 → save to temp directory
-  ├─ Replace original image part with a short placeholder (remove ERROR noise from unsupportedParts)
-  └─ Inject path hint before user's text
+vision-helper plugin (OpenCode v2 session.hook("context"))
+  ├─ Look up the active model's capabilities.input (ctx.model.list)
+  ├─ Native vision → leave the media part untouched, tell the model not to call `vision`
+  ├─ Text-only → save the image to the temp dir, replace the media part with a path hint
+  └─ Clear hints injected on the previous pass (no accumulation)
   ↓
-Model sees the path hint → automatically calls the vision tool
+Model sees the path hint → calls the vision tool (api mode) or the subagent tool (subagent mode)
   ↓
-vision tool calls the vision API → returns image description
+vision tool calls the vision API → returns the image description
 ```
 
-- **Single image** → model calls `vision(path)` to read one image
-- **Multiple images** → model calls `vision(paths=[...])` to process all at once
+- **Single image** → the model calls `vision(paths=["..."])` to read one image
+- **Multiple images** → the model calls `vision(paths=[...])` once for all images
+- **Native-vision models** → media reaches the model unchanged: no hints, no external calls
+- **Text-only models** → the image part is replaced, so the provider never receives unsupported media
+
+Requires OpenCode 2.x: the plugin uses the v2 `@opencode/plugin` API (`id` + `setup(ctx)`) and v2 media parts.
 
 ## Prerequisites
 
-- [OpenCode](https://github.com/opencode-ai/opencode) installed
+- [OpenCode](https://github.com/opencode-ai/opencode) **2.x** installed (1.x users: `npx @jochenyang/opencode-vision@1.8.3`)
 - A vision-capable API (OpenAI Chat Completions format or MiniMax VLM)
 - Environment variables configured (recommended system-wide)
 
@@ -112,7 +98,7 @@ export VISION_MODEL="your-vision-model"
 
 #### `subagent` mode (new)
 
-The plugin instructs the LLM to delegate image analysis to a vision-capable subagent via the Task tool. No external API key required — the subagent runs on whatever multimodal model is configured in opencode (e.g. `opencode-go/minimax-m3`).
+The plugin instructs the LLM to delegate image analysis to a vision-capable subagent through the built-in `subagent` tool. No external API key required — the subagent runs on whatever multimodal model is configured in OpenCode (e.g. `opencode-go/minimax-m3`).
 
 ```bash
 export VISION_MODE=subagent
@@ -122,28 +108,37 @@ export VISION_MODE=subagent
 
 **Setup for subagent mode:**
 
-1. Create a subagent definition at `~/.config/opencode/agent/image-reader.md`:
+1. Create a subagent definition at `~/.config/opencode/agents/image-reader.md`:
 
 ```markdown
 ---
-description: Analyzes images and screenshots using a multimodal model. Use when the main agent cannot view images.
+description: Analyze images and screenshots with a multimodal model. Use when the active model cannot view images itself.
 mode: subagent
 model: opencode-go/minimax-m3
-permission:
-  read: allow
-  glob: allow
-  list: allow
-  bash: deny
-  edit: deny
+permissions:
+  - action: read
+    resource: "*"
+    effect: allow
+  - action: glob
+    resource: "*"
+    effect: allow
+  - action: shell
+    resource: "*"
+    effect: deny
+  - action: edit
+    resource: "*"
+    effect: deny
 ---
 
 You are a vision analyst. Read the image at the given path using the `read` tool and describe what you see.
 ```
 
-2. Restart opencode. The plugin will automatically:
+2. Restart OpenCode. The plugin will automatically:
    - Save pasted images to `/tmp/opencode-vision/image{N}/`
-   - Inject a system prompt instructing the non-vision model to delegate
-   - Inject a path hint naming the subagent
+   - Inject a system prompt telling the text-only model to delegate
+   - Replace each image part with a path hint naming the subagent
+
+> The subagent is launched through the built-in `subagent` tool (v1 called it `task`).
 
 #### Auto-fallback
 
@@ -201,19 +196,14 @@ export VISION_API_URL="https://api.minimax.chat"
 
 ### Manual
 
-Copy the two files to OpenCode's global config directory:
+Copy the single plugin file to OpenCode's global config directory:
 
 ```bash
-# Tool
-cp tools/vision.ts ~/.config/opencode/tools/
-
-# Plugin
+mkdir -p ~/.config/opencode/plugins
 cp plugins/vision-helper.ts ~/.config/opencode/plugins/
 ```
 
-OpenCode auto-discovers files under `~/.config/opencode/tools/` and `~/.config/opencode/plugins/` — **no need to modify `opencode.json`**.
-
-> Create the directories if they don't exist.
+OpenCode 2.x auto-discovers `.ts` files under `~/.config/opencode/plugins/` — **no need to modify `opencode.json`**. The `vision` tool is registered by the plugin itself.
 
 ### Via npx
 
@@ -241,47 +231,53 @@ Paste an image and ask:
 
 Expected behavior:
 
-1. The model cannot read the image directly (doesn't support multimodal)
-2. The plugin saves the image to temp and injects a path hint
-3. The model automatically calls the `vision` tool
-4. The model returns an image description
+1. The plugin checks the active model's image capability
+2. For a text-only model it saves the image to temp and replaces the image part with a path hint
+3. The model calls the `vision` tool (api mode) or the `subagent` tool (subagent mode)
+4. The model returns an image description based on that result
 
 ## Project Structure
 
 ```
 opencode-vision/
-├── tools/
-│   └── vision.ts          # Vision tool — calls the vision API
 ├── plugins/
-│   └── vision-helper.ts   # Plugin — saves images, injects hints, removes ERROR noise
+│   └── vision-helper.ts   # v2 plugin: image handling + `vision` tool registration
+├── agents/
+│   └── image-reader.md    # Optional multimodal subagent for subagent mode
 ├── bin/
 │   └── install.js         # CLI install/uninstall script
+├── tests/                 # bun tests (helpers, plugin context hook, vision tool)
 ├── package.json
-├── README.md
+├── tsconfig.json
 ├── README_en.md
 └── LICENSE
 ```
 
-### Tool: `tools/vision.ts`
-
-- Reads local image files and describes them via a vision API
-- Supports `path` (single) and `paths` (multiple) parameters
-- Supports two backends: OpenAI Chat Completions / MiniMax VLM (auto-detected)
-
 ### Plugin: `plugins/vision-helper.ts`
 
-- Hook: `experimental.chat.messages.transform`
-- Processes right before the message is sent to the model
-- Saves images to `os.tmpdir()/opencode-vision/`
-- Injects path hints before user text (not persisted to chat history)
-- Replaces original image parts to prevent ERROR noise from `unsupportedParts`
+- v2 entrypoint: `{ id: "opencode-vision", setup(ctx) }` (only a type import from `@opencode/plugin`, no runtime dependency)
+- Hook: `ctx.session.hook("context")` — runs before every agent model request
+- Reads the model's capabilities from `ctx.model.list()` to tell native-vision models from text-only ones
+- Saves images to `os.tmpdir()/opencode-vision/` and replaces each image part with a path hint
+- Clears hints injected on earlier passes so they never accumulate
+- Registers the `vision` tool through `ctx.tool.transform` with `options.codemode: false`
+- Blocks `vision` for native-vision models through `ctx.tool.hook("execute.before")`
+
+### Tool: `vision`
+
+- Reads local image files and describes them via an external vision API
+- Accepts `paths` (multiple) and the deprecated `path` (single)
+- Supports two backends: OpenAI Chat Completions / MiniMax VLM (auto-detected)
+- Sandboxes reads to the plugin temp directory
 
 ## Notes
 
-- Images are saved to the system temp directory `os.tmpdir()/opencode-vision/` — automatically cleaned on reboot
-- Temp files are named `pasted-{timestamp}-{random}.{ext}`
-- Same image pasted multiple times in one session creates separate temp files
-- Vision API calls use `max_tokens: 4096`, sufficient for detailed multi-image descriptions
+- Images are saved to the system temp directory `os.tmpdir()/opencode-vision/image{N}/{hash}.{ext}`
+- The same image content is written once per session (MD5 dedupe)
+- **LRU cleanup**: the most recent 200 images are kept (adjust with `VISION_MAX_IMAGES`)
+- Vision API calls use `max_tokens: 4096` (adjust with `VISION_MAX_TOKENS`)
+- Vision API fetch has a 60s timeout (adjust with `VISION_FETCH_TIMEOUT_MS`)
+- Native multimodal models bypass the plugin entirely; no external API key is needed for `subagent` mode
 
 ## Custom Vision API
 
@@ -308,6 +304,21 @@ export VISION_API_KEY="your-minimax-group-api-key"
 export VISION_API_URL="https://api.minimax.chat"
 # VISION_MODEL is not needed
 ```
+
+## Development
+
+```bash
+bun install        # dev dependencies (@opencode/plugin types, typescript)
+bun test           # unit + plugin tests
+bunx tsc --noEmit  # type check
+```
+
+The plugin itself has no runtime dependencies: `@opencode/plugin` is imported with `import type` only.
+
+## Copyright
+
+Copyright (c) 2026 Jochen Yang
+Copyright (c) 2026 Balashov Alexandr
 
 ## License
 
