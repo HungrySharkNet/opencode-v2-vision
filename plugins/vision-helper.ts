@@ -5,7 +5,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 
 // ─────────────────────────────────────────────────────────────────────────────
-// opencode-vision — OpenCode v2 plugin
+// opencode-v2-vision — OpenCode v2 plugin
 //
 // OpenCode v2 hands prompt media to the provider unchanged, and text-only models
 // reject image input. The plugin therefore rewrites every user image part into a
@@ -16,10 +16,10 @@ import path from "node:path"
 // directly and the system prompt tells them not to call `vision`.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const PLUGIN_ID = "opencode-vision"
+export const PLUGIN_ID = "opencode-v2-vision"
 export const VISION_TOOL_NAME = "vision"
-export const HINT_PREFIX = "[opencode-vision:"
-export const VISION_TMP_DIR = path.join(tmpdir(), "opencode-vision")
+export const HINT_PREFIX = "[opencode-v2-vision:"
+export const VISION_TMP_DIR = path.join(tmpdir(), "opencode-v2-vision")
 
 const TMP_DIR_RESOLVED = path.resolve(VISION_TMP_DIR)
 
@@ -161,14 +161,14 @@ export function systemInstruction(nativeVision: boolean, mode: VisionMode = reso
   if (mode !== "subagent") {
     return [
       "This model does NOT support image input.",
-      `Image attachments are replaced with a path hint like "${HINT_PREFIX} image #1 saved to /tmp/opencode-vision/image1/<hash>.png — use the vision tool ...]".`,
+      `Image attachments are replaced with a path hint like "${HINT_PREFIX} image #1 saved to /tmp/opencode-v2-vision/image1/<hash>.png — use the vision tool ...]".`,
       "Call the `vision` tool with that exact path to analyze the image.",
       "Do not call the `read` tool on images — it fails for models without image input.",
     ].join(" ")
   }
   return [
     "IMPORTANT: This model does NOT support image input.",
-    `Image attachments are replaced with a path hint like "${HINT_PREFIX} image #1 saved to /tmp/opencode-vision/image1/<hash>.png — delegate to the \`subagent\` tool ...]",`,
+    `Image attachments are replaced with a path hint like "${HINT_PREFIX} image #1 saved to /tmp/opencode-v2-vision/image1/<hash>.png — delegate to the \`subagent\` tool ...]",`,
     `When you see such a hint, call the \`subagent\` tool with agent="${name}", a short description, and a complete prompt asking it to analyze the image at that exact path.`,
     `The "${name}" subagent runs on a multimodal model and can view images.`,
     "Never call the `read` tool on an image yourself — it fails for models without image input.",
@@ -182,7 +182,7 @@ export interface SavedImage {
 }
 
 /**
- * Persist one inline image under <tmp>/opencode-vision/image{N}/<hash>.<ext>.
+ * Persist one inline image under <tmp>/opencode-v2-vision/image{N}/<hash>.<ext>.
  * Identical bytes map to the same seq and are written only once.
  * Write failures degrade to undefined instead of breaking the turn.
  */
@@ -311,7 +311,7 @@ export const VISION_TOOL_INPUT: Record<string, unknown> = {
 export function visionToolDescription(): string {
   return [
     "Reads one or more image files through an external VLM API and returns a textual description.",
-    "Use it for images saved by opencode-vision (paths under the opencode-vision temp directory) when the active model has no native image input.",
+    "Use it for images saved by opencode-v2-vision (paths under the opencode-v2-vision temp directory) when the active model has no native image input.",
     "Native-vision models must NOT call this tool: analyze attached images directly or use the built-in `read` tool for local image files.",
     "Requires VISION_API_KEY and VISION_API_URL; VISION_MODEL is required for OpenAI-compatible backends and optional for MiniMax.",
   ].join("\n")

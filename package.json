@@ -1,9 +1,10 @@
 {
-  "name": "@jochenyang/opencode-vision",
+  "name": "opencode-v2-vision",
   "version": "2.0.0",
   "description": "Vision plugin for OpenCode v2 — lets text-only models work with pasted images",
   "keywords": [
     "opencode",
+    "opencode-v2",
     "opencode-plugin",
     "vision",
     "image",
@@ -11,21 +12,28 @@
     "plugin",
     "minimax"
   ],
-  "homepage": "https://github.com/jochenyang/opencode-vision",
+  "homepage": "https://github.com/HungrySharkNet/opencode-vision",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HungrySharkNet/opencode-vision.git"
+  },
+  "bugs": {
+    "url": "https://github.com/HungrySharkNet/opencode-vision/issues"
+  },
   "license": "MIT",
   "author": "Jochen Yang",
   "contributors": [
     "Balashov Alexandr"
   ],
   "bin": {
-    "opencode-vision": "bin/install.js"
+    "opencode-v2-vision": "bin/install.js"
   },
   "files": [
     "bin/",
     "plugins/",
     "agents/",
     "assets/",
-    "README_en.md"
+    "README.md"
   ],
   "scripts": {
     "test": "bun test",

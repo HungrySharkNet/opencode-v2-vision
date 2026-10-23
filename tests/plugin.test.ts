@@ -107,7 +107,7 @@ beforeEach(async () => {
 
 describe("plugin shape", () => {
   test("is a v2 plugin definition", () => {
-    expect((plugin as any).id).toBe("opencode-vision")
+    expect((plugin as any).id).toBe("opencode-v2-vision")
     expect(typeof (plugin as any).setup).toBe("function")
   })
 })

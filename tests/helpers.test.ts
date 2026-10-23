@@ -38,8 +38,8 @@ describe("isPluginInjectedText", () => {
       "",
       "hello",
       "[Image attached: photo.jpg]",
-      " [opencode-vision: x]",
-      "use [opencode-vision: x] here",
+      " [opencode-v2-vision: x]",
+      "use [opencode-v2-vision: x] here",
       "[vision: image1/abc]",
     ]
     for (const text of texts) expect(isPluginInjectedText(text)).toBe(false)

@@ -1,40 +1,51 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/logo.svg">
-    <img src="assets/logo.svg" width="64" alt="opencode-vision logo">
+    <img src="assets/logo.svg" width="64" alt="opencode-v2-vision logo">
   </picture>
 </p>
-<h1 align="center">opencode-vision</h1>
+<h1 align="center">opencode-v2-vision</h1>
 <p align="center">
-  Let non-vision OpenCode models "see" pasted images
+  Let non-vision OpenCode models "see" pasted images — <strong>OpenCode v2 fork</strong>
   <br />
   Auto-saves images → guides the model to the `vision` tool → returns a description
 </p>
 <p align="center">
-  <a href="https://www.npmjs.com/package/@jochenyang/opencode-vision">
-    <img src="https://img.shields.io/npm/v/@jochenyang/opencode-vision?style=flat-square" alt="npm version">
-  </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="MIT License">
   </a>
-  <a href="https://github.com/JochenYang/opencode-vision">
-    <img src="https://img.shields.io/github/stars/JochenYang/opencode-vision?style=flat-square" alt="GitHub stars">
+  <a href="https://github.com/HungrySharkNet/opencode-vision">
+    <img src="https://img.shields.io/github/stars/HungrySharkNet/opencode-vision?style=flat-square" alt="GitHub stars">
   </a>
 </p>
 
+> **Fork notice.** This repository is a fork of the original plugin
+> [JochenYang/opencode-vision](https://github.com/JochenYang/opencode-vision).
+> It was created because the original project is not being updated (it still
+> targets the OpenCode v1 plugin API). The fork ports the plugin to OpenCode v2
+> and is not published to npm, so it is installed manually from this repository.
+
 ---
 
-### ✨ One-line install
+### ✨ Install (manual)
+
+This fork is not published to npm — install it from a clone:
 
 ```bash
-npx @jochenyang/opencode-vision
+git clone https://github.com/HungrySharkNet/opencode-vision
+mkdir -p ~/.config/opencode/plugins
+cp opencode-vision/plugins/vision-helper.ts ~/.config/opencode/plugins/
+opencode service restart
 ```
 
 Uninstall:
 
 ```bash
-npx @jochenyang/opencode-vision --uninstall
+rm ~/.config/opencode/plugins/vision-helper.ts
+opencode service restart
 ```
+
+> Using OpenCode 1.x? This fork targets v2 only — use the upstream plugin `npx @jochenyang/opencode-vision@1.8.3`.
 
 ---
 
@@ -63,7 +74,7 @@ Requires OpenCode 2.x: the plugin uses the v2 `@opencode/plugin` API (`id` + `se
 
 ## Prerequisites
 
-- [OpenCode](https://github.com/opencode-ai/opencode) **2.x** installed (1.x users: `npx @jochenyang/opencode-vision@1.8.3`)
+- [OpenCode](https://opencode.ai) **2.x** installed — the fork targets the v2 plugin API only
 - A vision-capable API (OpenAI Chat Completions format or MiniMax VLM)
 - Environment variables configured (recommended system-wide)
 
@@ -134,7 +145,7 @@ You are a vision analyst. Read the image at the given path using the `read` tool
 ```
 
 2. Restart OpenCode. The plugin will automatically:
-   - Save pasted images to `/tmp/opencode-vision/image{N}/`
+   - Save pasted images to `/tmp/opencode-v2-vision/image{N}/`
    - Inject a system prompt telling the text-only model to delegate
    - Replace each image part with a path hint naming the subagent
 
@@ -199,20 +210,22 @@ export VISION_API_URL="https://api.minimax.chat"
 Copy the single plugin file to OpenCode's global config directory:
 
 ```bash
+git clone https://github.com/HungrySharkNet/opencode-vision
 mkdir -p ~/.config/opencode/plugins
-cp plugins/vision-helper.ts ~/.config/opencode/plugins/
+cp opencode-vision/plugins/vision-helper.ts ~/.config/opencode/plugins/
 ```
 
 OpenCode 2.x auto-discovers `.ts` files under `~/.config/opencode/plugins/` — **no need to modify `opencode.json`**. The `vision` tool is registered by the plugin itself.
 
-### Via npx
+### With the helper script
+
+The bundled installer copies the plugin, checks the OpenCode version, and cleans up 1.x leftovers:
 
 ```bash
-# Install
-npx @jochenyang/opencode-vision
-
-# Uninstall
-npx @jochenyang/opencode-vision --uninstall
+git clone https://github.com/HungrySharkNet/opencode-vision
+cd opencode-vision
+node bin/install.js              # install
+node bin/install.js --uninstall  # uninstall
 ```
 
 ## Verification
@@ -239,7 +252,7 @@ Expected behavior:
 ## Project Structure
 
 ```
-opencode-vision/
+opencode-v2-vision/
 ├── plugins/
 │   └── vision-helper.ts   # v2 plugin: image handling + `vision` tool registration
 ├── agents/
@@ -249,16 +262,16 @@ opencode-vision/
 ├── tests/                 # bun tests (helpers, plugin context hook, vision tool)
 ├── package.json
 ├── tsconfig.json
-├── README_en.md
+├── README.md
 └── LICENSE
 ```
 
 ### Plugin: `plugins/vision-helper.ts`
 
-- v2 entrypoint: `{ id: "opencode-vision", setup(ctx) }` (only a type import from `@opencode/plugin`, no runtime dependency)
+- v2 entrypoint: `{ id: "opencode-v2-vision", setup(ctx) }` (only a type import from `@opencode/plugin`, no runtime dependency)
 - Hook: `ctx.session.hook("context")` — runs before every agent model request
 - Reads the model's capabilities from `ctx.model.list()` to tell native-vision models from text-only ones
-- Saves images to `os.tmpdir()/opencode-vision/` and replaces each image part with a path hint
+- Saves images to `os.tmpdir()/opencode-v2-vision/` and replaces each image part with a path hint
 - Clears hints injected on earlier passes so they never accumulate
 - Registers the `vision` tool through `ctx.tool.transform` with `options.codemode: false`
 - Blocks `vision` for native-vision models through `ctx.tool.hook("execute.before")`
@@ -272,7 +285,7 @@ opencode-vision/
 
 ## Notes
 
-- Images are saved to the system temp directory `os.tmpdir()/opencode-vision/image{N}/{hash}.{ext}`
+- Images are saved to the system temp directory `os.tmpdir()/opencode-v2-vision/image{N}/{hash}.{ext}`
 - The same image content is written once per session (MD5 dedupe)
 - **LRU cleanup**: the most recent 200 images are kept (adjust with `VISION_MAX_IMAGES`)
 - Vision API calls use `max_tokens: 4096` (adjust with `VISION_MAX_TOKENS`)

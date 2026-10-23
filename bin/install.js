@@ -97,7 +97,7 @@ function removeLegacyTool() {
 }
 
 async function doInstall() {
-  title("opencode-vision 安装 (OpenCode v2)")
+  title("opencode-v2-vision 安装 (OpenCode v2)")
 
   // ── 文件复制 ──
   const srcPlugin = path.join(SRC, PLUGIN_REL)
@@ -135,7 +135,7 @@ async function doInstall() {
     if (major >= 2) {
       log(`OpenCode ${ver}`)
     } else {
-      log(`检测到 OpenCode ${ver || "未知版本"} — opencode-vision 2.x 需要 OpenCode 2.x`, false)
+      log(`检测到 OpenCode ${ver || "未知版本"} — opencode-v2-vision 需要 OpenCode 2.x`, false)
       console.log("     OpenCode 1.x 请使用 1.8.3：npx @jochenyang/opencode-vision@1.8.3")
     }
   } catch {
@@ -155,7 +155,7 @@ async function doInstall() {
 }
 
 async function doUninstall() {
-  title("opencode-vision 卸载")
+  title("opencode-v2-vision 卸载")
 
   const targets = [PLUGIN_REL, LEGACY_TOOL_REL]
   let removed = 0
@@ -178,9 +178,10 @@ async function doUninstall() {
     }
   }
 
-  // 清理缓存图片（用户隐私）
-  const tmpDir = path.join(os.tmpdir(), "opencode-vision")
-  if (fs.existsSync(tmpDir)) {
+  // 清理缓存图片（用户隐私）；同时清理 1.x/старое имя каталога
+  for (const dirName of ["opencode-v2-vision", "opencode-vision"]) {
+    const tmpDir = path.join(os.tmpdir(), dirName)
+    if (!fs.existsSync(tmpDir)) continue
     try {
       fs.rmSync(tmpDir, { recursive: true, force: true })
       log(`已清理临时目录 ${path.relative(os.tmpdir(), tmpDir)}/* (含缓存图片)`)
@@ -191,7 +192,7 @@ async function doUninstall() {
 
   title("卸载完成")
   if (removed > 0) {
-    console.log("  已删除 opencode-vision 相关文件。")
+    console.log("  已删除 opencode-v2-vision 相关文件。")
     console.log("  重启 OpenCode 即可生效。")
   } else {
     console.log("  没有找到已安装的文件。")
